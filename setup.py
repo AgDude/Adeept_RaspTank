@@ -20,14 +20,24 @@ def replace_num(file,initial,new_num):
     with open(file,"w") as f:
         f.writelines(newline)
 
+errors = set()
+def run_command(command):
+    result = os.system(command)
+    if result == 0 and command in errors:
+        errors.remove(command)
+    elif result != 0:
+        errors.add(command)
+    return result
+
 commands_1 = [
     "sudo apt-get update",
-    "sudo apt-get purge -y wolfram-engine",
-    "sudo apt-get purge -y libreoffice*",
-    "sudo apt-get -y clean",
-    "sudo apt-get -y autoremove",
+    # "sudo apt-get purge -y wolfram-engine",
+    # "sudo apt-get purge -y libreoffice*",
+    # "sudo apt-get -y clean",
+    # "sudo apt-get -y autoremove",
+    "sudo apt install -y python3-pip",
     "sudo pip3 install -U pip",
-    "sudo apt-get install -y python-dev python-pip libfreetype6-dev libjpeg-dev build-essential",
+    "sudo apt-get install -y python-dev libfreetype6-dev libjpeg-dev build-essential",
     "sudo apt-get install -y i2c-tools",
     "sudo -H pip3 install --upgrade luma.oled",
     "sudo pip3 install adafruit-pca9685",
@@ -45,7 +55,7 @@ commands_1 = [
 mark_1 = 0
 for x in range(3):
     for command in commands_1:
-        if os.system(command) != 0:
+        if run_command(command) != 0:
             print("Error running installation step 1")
             mark_1 = 1
     if mark_1 == 0:
@@ -54,10 +64,11 @@ for x in range(3):
 
 commands_2 = [
     "sudo pip3 install RPi.GPIO",
-    "sudo apt-get -y install libqtgui4 libhdf5-dev libhdf5-serial-dev libatlas-base-dev libjasper-dev libqt4-test",
+    # "sudo apt-get -y install libqtgui4 libqt4-test",
+    "sudo apt-get -y install libhdf5-dev libhdf5-serial-dev libatlas-base-dev libjasper-dev python3-h5py",
     "sudo pip3 install -r server/requirements.txt",
     "sudo git clone https://github.com/oblique/create_ap",
-    "cd " + thisPath + "/create_ap && sudo make install",
+    "cd " + thisPath + "../create_ap && sudo make install",
     "cd //home/pi/create_ap && sudo make install",
     "sudo apt-get install -y util-linux procps hostapd iproute2 iw haveged dnsmasq"
 ]
@@ -71,22 +82,6 @@ for x in range(3):
     if mark_2 == 0:
         break
 
-commands_3 = [
-    "sudo pip3 install numpy",
-    "sudo pip3 install opencv-contrib-python==3.4.3.18",
-    "sudo pip3 install imutils zmq pybase64 psutil"
-]
-
-mark_3 = 0
-for x in range(3):
-    for command in commands_3:
-        if os.system(command) != 0:
-            print("Error running installation step 3")
-            mark_3 = 1
-    if mark_3 == 0:
-        break
-
-
 try:
     replace_num("/boot/config.txt", '#dtparam=i2c_arm=on','dtparam=i2c_arm=on\nstart_x=1\n')
 except:
@@ -96,7 +91,7 @@ except:
 
 try:
     os.system('sudo touch //home/pi/startup.sh')
-    with open("//home/pi/startup.sh",'w') as file_to_write:
+    with open("/home/pi/startup.sh",'w') as file_to_write:
         #you can choose how to control the robot
         file_to_write.write("#!/bin/sh\nsudo python3 " + thisPath + "/server/webServer.py")
 #       file_to_write.write("#!/bin/sh\nsudo python3 " + thisPath + "/server/server.py")
@@ -115,8 +110,16 @@ try: #fix conflict with onboard Raspberry Pi audio
 except:
     pass
 
-os.system("sudo cp -f //home/pi/adeept_rasptank/server/config.txt //etc/config.txt")
+os.system("sudo cp -f //home/pi/Adeept_RaspTank/server/config.txt //etc/config.txt")
+
 
 print('The program in Raspberry Pi has been installed, disconnected and restarted. \nYou can now power off the Raspberry Pi to install the camera and driver board (Robot HAT). \nAfter turning on again, the Raspberry Pi will automatically run the program to set the servos port signal to turn the servos to the middle position, which is convenient for mechanical assembly.')
-print('restarting...')
-os.system("sudo reboot")
+
+if len(errors):
+    print('errors encountered during install. The following commands exited non-zero\n')
+    for error in errors:
+        print(f'{error}\n')
+    print('Restart required for some installations to take effect. Manually restart like "sudo reboot"')
+else:
+    print('restarting...')
+    os.system("sudo reboot")

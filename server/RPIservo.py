@@ -14,9 +14,6 @@ import random
 '''
 change this form 1 to -1 to reverse servos
 '''
-pwm = Adafruit_PCA9685.PCA9685()
-pwm.set_pwm_freq(50)
-
 init_pwm0 = 300
 init_pwm1 = 300
 init_pwm2 = 300
@@ -38,6 +35,7 @@ init_pwm14 = 300
 init_pwm15 = 300
 
 class ServoCtrl(threading.Thread):
+	_pwm = None
 
 	def __init__(self, *args, **kwargs):
 		self.sc_direction = [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1]
@@ -77,6 +75,13 @@ class ServoCtrl(threading.Thread):
 		self.__flag.clear()
 
 
+	@property
+	def pwm(self):
+		if self._pwm is None:
+			self._pwm = Adafruit_PCA9685.PCA9685()
+			self._pwm.set_pwm_freq(50)
+		return self._pwm
+	
 	def pause(self):
 		print('......................pause..........................')
 		self.__flag.clear()
@@ -90,7 +95,7 @@ class ServoCtrl(threading.Thread):
 	def moveInit(self):
 		self.scMode = 'init'
 		for i in range(0,16):
-			pwm.set_pwm(i,0,self.initPos[i])
+			self.pwm.set_pwm(i,0,self.initPos[i])
 			self.lastPos[i] = self.initPos[i]
 			self.nowPos[i] = self.initPos[i]
 			self.bufferPos[i] = float(self.initPos[i])
@@ -102,7 +107,7 @@ class ServoCtrl(threading.Thread):
 		if initInput > self.minPos[ID] and initInput < self.maxPos[ID]:
 			self.initPos[ID] = initInput
 			if moveTo:
-				pwm.set_pwm(ID,0,self.initPos[ID])
+				self.pwm.set_pwm(ID,0,self.initPos[ID])
 		else:
 			print('initPos Value Error.')
 
@@ -110,7 +115,7 @@ class ServoCtrl(threading.Thread):
 	def moveServoInit(self, ID):
 		self.scMode = 'init'
 		for i in range(0,len(ID)):
-			pwm.set_pwm(ID[i], 0, self.initPos[ID[i]])
+			self.pwm.set_pwm(ID[i], 0, self.initPos[ID[i]])
 			self.lastPos[ID[i]] = self.initPos[ID[i]]
 			self.nowPos[ID[i]] = self.initPos[ID[i]]
 			self.bufferPos[ID[i]] = float(self.initPos[ID[i]])
@@ -138,7 +143,7 @@ class ServoCtrl(threading.Thread):
 			for dc in range(0,16):
 				if not self.goalUpdate:
 					self.nowPos[dc] = int(round((self.lastPos[dc] + (((self.goalPos[dc] - self.lastPos[dc])/self.scSteps)*(i+1))),0))
-					pwm.set_pwm(dc, 0, self.nowPos[dc])
+					self.pwm.set_pwm(dc, 0, self.nowPos[dc])
 
 				if self.ingGoal != self.goalPos:
 					self.posUpdate()
@@ -170,7 +175,7 @@ class ServoCtrl(threading.Thread):
 					self.nowPos[i] = newNow
 
 				if not self.goalUpdate:
-					pwm.set_pwm(i, 0, self.nowPos[i])
+					self.pwm.set_pwm(i, 0, self.nowPos[i])
 
 				if self.ingGoal != self.goalPos:
 					self.posUpdate()
@@ -228,7 +233,7 @@ class ServoCtrl(threading.Thread):
 		self.nowPos[self.wiggleID] = newNow
 		self.lastPos[self.wiggleID] = newNow
 		if self.bufferPos[self.wiggleID] < self.maxPos[self.wiggleID] and self.bufferPos[self.wiggleID] > self.minPos[self.wiggleID]:
-			pwm.set_pwm(self.wiggleID, 0, self.nowPos[self.wiggleID])
+			self.pwm.set_pwm(self.wiggleID, 0, self.nowPos[self.wiggleID])
 		else:
 			self.stopWiggle()
 		time.sleep(self.scDelay-self.scMoveTime)
@@ -253,7 +258,7 @@ class ServoCtrl(threading.Thread):
 		if self.nowPos[ID] > self.maxPos[ID]:self.nowPos[ID] = self.maxPos[ID]
 		elif self.nowPos[ID] < self.minPos[ID]:self.nowPos[ID] = self.minPos[ID]
 		self.lastPos[ID] = self.nowPos[ID]
-		pwm.set_pwm(ID, 0, self.nowPos[ID])
+		self.pwm.set_pwm(ID, 0, self.nowPos[ID])
 
 
 	def scMove(self):
@@ -272,7 +277,7 @@ class ServoCtrl(threading.Thread):
 		self.nowPos[ID] = PWM_input
 		self.bufferPos[ID] = float(PWM_input)
 		self.goalPos[ID] = PWM_input
-		pwm.set_pwm(ID, 0, PWM_input)
+		self.pwm.set_pwm(ID, 0, PWM_input)
 		self.pause()
 
 
@@ -311,9 +316,9 @@ if __name__ == '__main__':
 		# time.sleep(delaytime)
 		'''
 		'''
-		pwm.set_pwm(0,0,560)
+		self.pwm.set_pwm(0,0,560)
 		time.sleep(1)
-		pwm.set_pwm(0,0,100)
+		self.pwm.set_pwm(0,0,100)
 		time.sleep(2)
 		'''
 		pass
