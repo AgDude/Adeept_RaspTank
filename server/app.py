@@ -3,9 +3,11 @@ from importlib import import_module
 import os
 from flask import Flask, render_template, Response, send_from_directory
 from flask_cors import *
-# import camera driver
+import base64
+import time
 
-from camera_opencv import Camera
+# import camera driver
+# from camera_opencv import Camera
 import threading
 
 # Raspberry Pi camera module (requires picamera package)
@@ -13,7 +15,7 @@ import threading
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
-camera = Camera()
+# camera = Camera()
 
 def gen(camera):
     """Video streaming generator function."""
@@ -22,10 +24,17 @@ def gen(camera):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
+def gen_black():
+    frame = base64.b64decode('R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs==')
+    while True:
+        time.sleep(0.5)
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
 @app.route('/video_feed')
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(gen(camera),
+    return Response(gen_black(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -59,8 +68,8 @@ def index():
     return send_from_directory(dir_path+'/dist', 'index.html')
 
 class webapp:
-    def __init__(self):
-        self.camera = camera
+    # def __init__(self):
+        # self.camera = camera
 
     def modeselect(self, modeInput):
         Camera.modeSelect = modeInput

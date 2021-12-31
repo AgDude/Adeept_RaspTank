@@ -50,8 +50,7 @@ class CVThread(threading.Thread):
     X_lock = 0
     tor = 17
 
-    scGear = RPIservo.ServoCtrl()
-    scGear.moveInit()
+    _scGear = None
     move.setup()
     switch.switchSetup()
 
@@ -93,6 +92,14 @@ class CVThread(threading.Thread):
         self.thresh = None
         self.cnts = None
 
+    @property
+    def scGear(self):
+        if self._scGear is None:
+            self._scGear = RPIservo.ServoCtrl()
+            self._scGear.moveInit()
+        return self._scGear
+
+    
     def mode(self, invar, imgInput):
         self.CVMode = invar
         self.imgCV = imgInput
@@ -202,7 +209,7 @@ class CVThread(threading.Thread):
             #turnRight
             error = (posInput-320)/3
             outv = int(round((pid.GenOut(error)),0))
-            CVThread.scGear.moveAngle(0,-outv)
+            self.scGear.moveAngle(0,-outv)
             if CVRun:
                 move.move(80, 'no', 'right', 0.5)
             else:
@@ -213,7 +220,7 @@ class CVThread(threading.Thread):
             #turnLeft
             error = (320-posInput)/3
             outv = int(round((pid.GenOut(error)),0))
-            CVThread.scGear.moveAngle(0,outv)
+            self.scGear.moveAngle(0,outv)
             if CVRun:
                 move.move(80, 'no', 'left', 0.5)
             else:
@@ -265,13 +272,13 @@ class CVThread(threading.Thread):
         self.pause()
 
 
-    def servoMove(ID, Dir, errorInput):
+    def servoMove(self, ID, Dir, errorInput):
         if ID == 1:
             errorGenOut = CVThread.kalman_filter_X.kalman(errorInput)
             CVThread.P_anglePos += 0.15*(errorGenOut*Dir)*CVThread.cameraDiagonalW/CVThread.videoW
 
             if abs(errorInput) > CVThread.tor:
-                CVThread.scGear.moveAngle(ID,CVThread.P_anglePos)
+                self.scGear.moveAngle(ID,CVThread.P_anglePos)
                 CVThread.X_lock = 0
             else:
                 CVThread.X_lock = 1
@@ -280,7 +287,7 @@ class CVThread(threading.Thread):
             CVThread.T_anglePos += 0.1*(errorGenOut*Dir)*CVThread.cameraDiagonalH/CVThread.videoH
 
             if abs(errorInput) > CVThread.tor:
-                CVThread.scGear.moveAngle(ID,CVThread.T_anglePos)
+                self.scGear.moveAngle(ID,CVThread.T_anglePos)
                 CVThread.Y_lock = 0
             else:
                 CVThread.Y_lock = 1
@@ -305,8 +312,8 @@ class CVThread(threading.Thread):
             Y = int(self.box_y)
             error_Y = 240 - Y
             error_X = 320 - X
-            # CVThread.servoMove(CVThread.P_servo, CVThread.P_direction, error_X)
-            CVThread.servoMove(CVThread.T_servo, CVThread.T_direction, error_Y)
+            # self.servoMove(CVThread.P_servo, CVThread.P_direction, error_X)
+            self.servoMove(CVThread.T_servo, CVThread.T_direction, error_Y)
 
             # if CVThread.X_lock == 1 and CVThread.Y_lock == 1:
             if CVThread.Y_lock == 1:
@@ -424,11 +431,13 @@ class Camera(BaseCamera):
     def frames():
         camera = cv2.VideoCapture(Camera.video_source)
         if not camera.isOpened():
+            return []
             raise RuntimeError('Could not start camera.')
 
         cvt = CVThread()
         cvt.start()
 
+        ImgIsNone = 0
         while True:
             # read current frame
             _, img = camera.read()
